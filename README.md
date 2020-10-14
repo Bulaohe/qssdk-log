@@ -1,24 +1,10 @@
-# Oalog unified client standard SDK
-
-Oalog depends on Monolog. It provides three types of logs: File log, MySQL log, and UDP log.
 
 ## Installation 
-
-Add private 2345 pacakgist into composer.json
-
-```
-"repositories": {
-    "0": {
-        "type": "composer",
-        "url": "http://packagist.2345.com/repo/private/"
-    }
-}
-```
 
 Install the latest version with:
 
 ``` bash
-$ composer require ssdk/oalog
+$ composer require qssdk/log
 ```
 
 ## Env Configuration
@@ -26,8 +12,8 @@ Please make sure .env configuration is correct.
 
 ```
 #Oalog SDK logs File configuration
-OALOG_CHANNEL=ae_logger
-OALOG_FILE_LOG_PATH=/opt/logs/ae.log
+OALOG_CHANNEL=qs_logger
+OALOG_FILE_LOG_PATH=/opt/logs/source.log
 OALOG_FILE_LOG_BUFFER=10
 
 #Oalog SDK Logs Mysql configuration
@@ -74,5 +60,5 @@ Oalog::registerFileLog();
 Monolog 2.x works with PHP 7.2 or above
 
 ### Author
-Simon Quan <quanqm@2345.com>
+Simon Quan <qqmmqq@gmail.com>
 
