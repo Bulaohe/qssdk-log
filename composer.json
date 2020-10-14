@@ -1,0 +1,30 @@
+{
+    "name": "qssdk/log",
+    "description": "Unified Logger Client Standard SDK",
+    "keywords": ["log4php", "Monolog"],
+    "type": "Library",
+    "require": {
+        "php": "^7.2",
+        "monolog/monolog": "^2.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Simon Quan",
+            "email": "quanqm@2345.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ssdk\\Oalog\\": "src/"
+        },
+        "files": [
+            "src/config/functions.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Test\\Ssdk\\Oalog\\": "test/"
+        }
+    }
+}
