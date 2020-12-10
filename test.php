@@ -3,6 +3,7 @@ require_once 'vendor/autoload.php';
 
 use Test\Ssdk\Oalog\TestLogger;
 use Ssdk\Oalog\Facades\Oalog;
+use Ssdk\Oalog\Logger;
 
 // echo TestLogger::testLog4Php();
 // echo TestLogger::testMonolog();
@@ -19,12 +20,19 @@ use Ssdk\Oalog\Facades\Oalog;
 //     });
 // }
 
-Oalog::registerFileLog();
+// Oalog::registerFileLog();
 
 // throw new \Exception('bbbbbbbbbbbbbbbbbbbbbbbb');
 
 // TestLogger::testException();
 // TestLogger::testErrorException();
-TestLogger::testError();
+// TestLogger::testError();
 
+while (true) {
+    Oalog::log('testlog', ['me'=>'ok'], Logger::INFO);
+    Oalog::log('testlog', ['me'=>'ok'], Logger::ERROR);
+    sleep(3);
+}
+
+echo 'ok';
 exit;

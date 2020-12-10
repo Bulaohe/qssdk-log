@@ -2,9 +2,9 @@
     "name": "qssdk/log",
     "description": "Unified Logger Client Standard SDK",
     "keywords": ["log4php", "Monolog"],
-    "type": "Library",
+    "type": "library",
     "require": {
-        "php": "^7.2",
+        "php": "^7.2|^8.0",
         "monolog/monolog": "^2.0"
     },
     "license": "MIT",

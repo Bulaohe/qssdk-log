@@ -27,8 +27,8 @@ class Oalog
             //获取上一级调用Trace的快捷方法
             // file | line | class | type | args
             $t = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-            $t[0]['function']  = $t[1]['function'];
-            $t[0]['class']  = $t[1]['class'];
+            $t[0]['function']  = $t[1]['function'] ?? 'no function';
+            $t[0]['class']  = $t[1]['class'] ?? 'no class';;
             
             $args[1] = array_merge($args[1], $t[0]);
         }

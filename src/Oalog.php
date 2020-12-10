@@ -31,6 +31,8 @@ class Oalog
 {
 
     private $logFile;
+    
+    private $logFileNobuffer = null;
 
     private $logMysql;
 
@@ -81,8 +83,13 @@ class Oalog
             $context['debug_info'] = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
         }
         
-        $this->getFileInstance();
-        return $this->logFile->oalog($message, $context, $level);
+        if (in_array($level, [Logger::ERROR, Logger::CRITICAL, Logger::EMERGENCY])) {
+            $this->getFileInstanceNoBuffer();
+            return $this->logFileNobuffer->oalog($message, $context, $level);
+        } else {
+            $this->getFileInstance();
+            return $this->logFile->oalog($message, $context, $level);
+        }
     }
 
     /**
@@ -141,6 +148,24 @@ class Oalog
             $this->logFile->pushProcessor(new PsrLogMessageProcessor());
             $this->logFile->pushProcessor(new UidProcessor(32));
             $this->logFile->pushProcessor(new WebProcessor());
+        }
+    }
+    
+    private function getFileInstanceNoBuffer():void
+    {
+        if ($this->logFileNobuffer == null) {
+            // 创建Logger实例
+            $this->logFileNobuffer = new Logger($this->config['channel']);
+            // 添加handler
+            //添加Buffer处理，每达到10条写入Stream，程序结束一并写入Stream
+            $this->logFileNobuffer->pushHandler((new StreamHandler($this->config['file_log_path'], Logger::DEBUG, true, 0777))->setFormatter(new LineFormatter(null, null, false, false)));
+            
+            $this->logFileNobuffer->pushProcessor(new HostnameProcessor());
+            $this->logFileNobuffer->pushProcessor(new MemoryUsageProcessor());
+            $this->logFileNobuffer->pushProcessor(new ProcessIdProcessor());
+            $this->logFileNobuffer->pushProcessor(new PsrLogMessageProcessor());
+            $this->logFileNobuffer->pushProcessor(new UidProcessor(32));
+            $this->logFileNobuffer->pushProcessor(new WebProcessor());
         }
     }
 

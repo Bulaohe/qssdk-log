@@ -6,7 +6,7 @@
  */
 return [
     'channel' => env('OALOG_CHANNEL', 'my_logger'),
-    'file_log_path' => env('OALOG_FILE_LOG_PATH','/opt/logs/oalog.log'),
+    'file_log_path' => env('OALOG_FILE_LOG_PATH','/opt/logs/oa/oalog.log'),
     'file_log_buffer' => (int)env('OALOG_FILE_LOG_BUFFER', 10),
     'mysql' => [
         'host'    => env('OALOG_DB_HOST', '127.0.0.1:3306'),
