@@ -8,7 +8,7 @@ PHP version: ^7.2|^8.0
 Install the latest version with:
 
 ``` bash
-$ composer require qssdk/log
+$ composer require qssdk/log:1.0.8
 ```
 
 ## Env Configuration
