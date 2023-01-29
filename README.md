@@ -1,4 +1,8 @@
 
+## Requirement
+Monolog version <= monolog/monolog:2.5
+PHP version: ^7.2|^8.0
+
 ## Installation 
 
 Install the latest version with:
