@@ -4,6 +4,8 @@ namespace Ssdk\Oalog;
 
 use Monolog\Logger as MonoLogger;
 use Monolog\DateTimeImmutable;
+use Monolog\Level;
+use Monolog\LogRecord;
 use Throwable;
 
 class Logger extends MonoLogger
@@ -18,6 +20,34 @@ class Logger extends MonoLogger
         self::CRITICAL,
         self::EMERGENCY,
     ];
+
+    /**
+     * Mapping between levels numbers defined in RFC 5424 and Monolog ones
+     *
+     * @phpstan-var array<int, Level> $rfc_5424_levels
+     */
+    private const RFC_5424_LEVELS = [
+        7 => Level::Debug,
+        6 => Level::Info,
+        5 => Level::Notice,
+        4 => Level::Warning,
+        3 => Level::Error,
+        2 => Level::Critical,
+        1 => Level::Alert,
+        0 => Level::Emergency,
+    ];
+
+    /**
+     * Keeps track of depth to prevent infinite logging loops
+     */
+    private int $logDepth = 0;
+
+    /**
+     * Whether to detect infinite logging loops
+     *
+     * This can be disabled via {@see useLoggingLoopDetection} if you have async handlers that do not play well with this
+     */
+    private bool $detectCycles = true;
     
     /**
      * 判断错误级别是否合法
@@ -59,61 +89,85 @@ class Logger extends MonoLogger
     /**
      * Adds a log record.
      *
-     * @param  int    $level   The logging level
-     * @param  string $message The log message
-     * @param  array  $context The log context
-     * @return bool   Whether the record has been processed
+     * @param  int               $level    The logging level (a Monolog or RFC 5424 level)
+     * @param  string            $message  The log message
+     * @param  mixed[]           $context  The log context
+     * @param  DateTimeImmutable $datetime Optional log date to log into the past or future
+     * @return bool              Whether the record has been processed
+     *
+     * @phpstan-param value-of<Level::VALUES>|Level $level
      */
-    public function addRecord(int $level, string $message, array $context = []): bool
+    public function addRecord(int|Level $level, string $message, array $context = [], DateTimeImmutable $datetime = null): bool
     {
-        // check if any handler will handle this message so we can return early and save cycles
-        $handlerKey = null;
-        foreach ($this->handlers as $key => $handler) {
-            if ($handler->isHandling(['level' => $level])) {
-                $handlerKey = $key;
-                break;
-            }
+        if (is_int($level) && isset(self::RFC_5424_LEVELS[$level])) {
+            $level = self::RFC_5424_LEVELS[$level];
         }
-        
-        if (null === $handlerKey) {
+
+        if ($this->detectCycles) {
+            $this->logDepth += 1;
+        }
+        if ($this->logDepth === 3) {
+            $this->warning('A possible infinite logging loop was detected and aborted. It appears some of your handler code is triggering logging, see the previous log record for a hint as to what may be the cause.');
+            return false;
+        } elseif ($this->logDepth >= 5) { // log depth 4 is let through so we can log the warning above
             return false;
         }
-        
-        $levelName = static::getLevelName($level);
-        $record = [
-            'message' => $message,
-            'context' => $context,
-            'level' => $level,
-            'level_name' => $levelName,
-            'level_no' => $level,
-            'channel' => $this->name,
-            'datetime' => new DateTimeImmutable($this->microsecondTimestamps, $this->timezone),
-            'extra' => []
-        ];
-        
+
         try {
-            foreach ($this->processors as $processor) {
-                $record = call_user_func($processor, $record);
-            }
-            
-            // advance the array pointer to the first handler that will handle this record
-            reset($this->handlers);
-            while ($handlerKey !== key($this->handlers)) {
-                next($this->handlers);
-            }
-            
-            while ($handler = current($this->handlers)) {
-                if (true === $handler->handle($record)) {
-                    break;
+            $recordInitialized = count($this->processors) === 0;
+
+            $levelName = static::getLevelName($level);
+            $record = new LogRecord(
+                message: $message,
+                context: $context,
+                level: self::toMonologLevel($level),
+                channel: $this->name,
+                datetime: $datetime ?? new DateTimeImmutable($this->microsecondTimestamps, $this->timezone),
+                extra: [
+                    'level_name' => $levelName,
+                    'level_no' => $level,
+                ],
+            );
+            $handled = false;
+
+            foreach ($this->handlers as $handler) {
+                if (false === $recordInitialized) {
+                    // skip initializing the record as long as no handler is going to handle it
+                    if (!$handler->isHandling($record)) {
+                        continue;
+                    }
+
+                    try {
+                        foreach ($this->processors as $processor) {
+                            $record = $processor($record);
+                        }
+                        $recordInitialized = true;
+                    } catch (Throwable $e) {
+                        $this->handleException($e, $record);
+
+                        return true;
+                    }
                 }
-                
-                next($this->handlers);
+
+                // once the record is initialized, send it to all handlers as long as the bubbling chain is not interrupted
+                try {
+                    $handled = true;
+                    if (true === $handler->handle($record)) {
+                        break;
+                    }
+                } catch (Throwable $e) {
+                    $this->handleException($e, $record);
+
+                    return true;
+                }
             }
-        } catch (Throwable $e) {
-            $this->handleException($e, $record);
+
+            return $handled;
+        } finally {
+            if ($this->detectCycles) {
+                $this->logDepth--;
+            }
         }
-        
-        return true;
     }
     
     /**

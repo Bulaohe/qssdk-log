@@ -4,6 +4,7 @@ namespace Ssdk\Oalog\Formatter;
 
 use Monolog\Formatter\LineFormatter as BaseLineFormatter;
 use Monolog\Utils;
+use Monolog\LogRecord;
 
 class LineFormatter extends BaseLineFormatter
 {
@@ -17,36 +18,24 @@ class LineFormatter extends BaseLineFormatter
     /**
      * {@inheritdoc}
      */
-    public function format(array $record): string
+    // public function format(array $record): string
+    public function format(LogRecord $record2): string
     {
-        if ($record['datetime'] instanceof \DateTimeInterface) {
-            $record['created_at'] = $record['datetime']->format("Y-m-d H:i:s.u");
-            unset($record['datetime']);
-            $record['datetime'] = $record['created_at'];
-            unset($record['created_at']);
-        }
+        $record = $record2->toArray();
         
-        $record['level'] = strtolower($record['level_name']);
+        $record['datetime'] = $record['datetime']->format('Y-m-d H:i:s.u');
+        $record['level'] = strtolower($record['extra']['level_name']);
         $record['context']['extra'] = $record['extra'];
-        $record['context']['level_name'] = $record['level_name'];
-        $record['context']['level_no'] = $record['level_no'];
+        $record['context']['level_name'] = $record['extra']['level_name'];
+        $record['context']['level_no'] = $record['extra']['level_no'];
         $record['context']['channel'] = $record['channel'];
+        unset($record['context']['extra']['level_name']);
+        unset($record['context']['extra']['level_no']);
         unset($record['extra']);
-        unset($record['level_name']);
-        unset($record['level_no']);
         unset($record['channel']);
         
         $vars = $this->normalize($record);
         $output = $this->format;
-        
- /*
-        foreach ($vars['extra'] as $var => $val) {
-            if (false !== strpos($output, '%extra.'.$var.'%')) {
-                $output = str_replace('%extra.'.$var.'%', $this->stringify($val), $output);
-                unset($vars['extra'][$var]);
-            }
-        }
-*/
         
         foreach ($vars['context'] as $var => $val) {
             if (false !== strpos($output, '%context.'.$var.'%')) {
@@ -54,20 +43,13 @@ class LineFormatter extends BaseLineFormatter
                 unset($vars['context'][$var]);
             }
         }
-//        $vars['extra'] = json_encode($vars['extra']);
         $vars['context'] = json_encode($vars['context'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        
         
         if ($this->ignoreEmptyContextAndExtra) {
             if (empty($vars['context'])) {
                 unset($vars['context']);
                 $output = str_replace('%context%', '', $output);
             }
-            
-//             if (empty($vars['extra'])) {
-//                 unset($vars['extra']);
-//                 $output = str_replace('%extra%', '', $output);
-//             }
         }
         
         foreach ($vars as $var => $val) {

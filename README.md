@@ -1,3 +1,11 @@
+##Version Matches:
+1.x
+Monolog version <= monolog/monolog:2.5
+PHP version: ^7.2|^8.0
+
+2.x
+Monolog version >= monolog/monolog:3.2
+PHP version: ^8.1
 
 ## Installation 
 
