@@ -59,12 +59,15 @@ class Logger extends MonoLogger
     /**
      * Adds a log record.
      *
-     * @param  int    $level   The logging level
-     * @param  string $message The log message
-     * @param  array  $context The log context
-     * @return bool   Whether the record has been processed
+     * @param  int               $level    The logging level (a Monolog or RFC 5424 level)
+     * @param  string            $message  The log message
+     * @param  mixed[]           $context  The log context
+     * @param  DateTimeImmutable $datetime Optional log date to log into the past or future
+     * @return bool              Whether the record has been processed
+     *
+     * @phpstan-param value-of<Level::VALUES>|Level $level
      */
-    public function addRecord(int $level, string $message, array $context = []): bool
+    public function addRecord(int|Level $level, string $message, array $context = [], DateTimeImmutable $datetime = null): bool
     {
         // check if any handler will handle this message so we can return early and save cycles
         $handlerKey = null;

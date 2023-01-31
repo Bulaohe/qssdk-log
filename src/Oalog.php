@@ -228,7 +228,7 @@ class Oalog
      * @param array $context
      * @return bool
      */
-    private function validateContext(string $message = '', array &$context, int $level):bool
+    private function validateContext(string $message, array &$context, int $level):bool
     {
         if (! Logger::isValidLevel($level)) {
             return false;
