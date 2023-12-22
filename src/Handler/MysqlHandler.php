@@ -3,6 +3,7 @@
 namespace Ssdk\Oalog\Handler;
 
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\LogRecord;
 use Monolog\Logger;
 use PDO;
 
@@ -86,7 +87,7 @@ class MysqlHandler extends AbstractProcessingHandler {
      * @param  array $record
      * @return void
      */
-    protected function write(array $record):void
+    protected function write(LogRecord $record):void
     {
         $deal = true;
         

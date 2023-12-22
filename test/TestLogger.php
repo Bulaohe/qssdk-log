@@ -47,7 +47,7 @@ class TestLogger
             'host'    => '127.0.0.1:3306',
             'db'      => 'bjwp',
             'db_user' => 'root',
-            'db_pwd'  => '123456',
+            'db_pwd'  => 'root',
         );
         $pdo = new PDO("mysql:host=" . $mysql_conf['host'] . ";dbname=" . $mysql_conf['db'], $mysql_conf['db_user'], $mysql_conf['db_pwd']);//创建一个pdo对象
         $pdo->exec("set names 'utf8'");

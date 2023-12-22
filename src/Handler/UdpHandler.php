@@ -6,6 +6,7 @@ namespace Ssdk\Oalog\Handler;
 
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;
+use Monolog\LogRecord;
 use Monolog\Handler\SyslogUdp\UdpSocket;
 /**
  * A Handler for logging to a remote syslogd UDP server.
@@ -35,8 +36,10 @@ class UdpHandler extends AbstractProcessingHandler
         $this->socket = new UdpSocket($host, $port ?: 514);
         $this->recordBufferMaxSize = $recordBufferMaxSize;
     }
-    protected function write(array $record, $flushAll = false):void
+    protected function write(LogRecord $logRecord):void
     {
+        $flushAll = false;
+        $record = (array)$logRecord;
         if (count($record) > 0) {
             $this->recordBuffer[] = $record;
         }

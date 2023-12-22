@@ -28,11 +28,10 @@ use Ssdk\Oalog\Logger;
 // TestLogger::testErrorException();
 // TestLogger::testError();
 
-while (true) {
-    Oalog::log('testlog', ['me'=>'ok'], Logger::INFO);
-    Oalog::log('testlog', ['me'=>'ok'], Logger::ERROR);
-    sleep(3);
-}
+// while (true) {
+//     echo TestLogger::testFacadeUdpLog();
+//     sleep(1);
+// }
 
 echo 'ok';
 exit;
