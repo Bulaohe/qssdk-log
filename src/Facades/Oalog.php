@@ -15,8 +15,15 @@ class Oalog
             'logMysql',
             'logUdp',
             'registerFileLog',
+            'flush',
+            'reset',
         ])) {
             return false;
+        }
+
+        if ($method === 'reset') {
+            BaseOalog::reset();
+            return true;
         }
         
         if (in_array($method, [
