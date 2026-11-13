@@ -17,6 +17,7 @@ use PDO;
 use Ssdk\Oalog\Handler\MysqlHandler;
 use Monolog\Handler\BufferHandler;
 use Ssdk\Oalog\Handler\UdpHandler;
+use Ssdk\Oalog\Handler\FlushingStreamHandler;
 use Monolog\Formatter\JsonFormatter;
 use Ssdk\Oalog\ErrorHandler;
 
@@ -47,8 +48,7 @@ class Oalog
     
     private function __construct()
     {
-        //
-        $this->config = require 'config/oalog.php';
+        $this->config = require __DIR__ . '/config/oalog.php';
     }
     
     private function __clone()
@@ -63,6 +63,49 @@ class Oalog
         }
         
         return self::$instance;
+    }
+
+    /**
+     * 重置单例及已打开的文件句柄。
+     * Swoole Process Pool fork 后必须在 WorkerStart 调用，避免子进程共用父进程 fd。
+     */
+    public static function reset(): void
+    {
+        if (! self::$instance instanceof self) {
+            return;
+        }
+
+        $instance = self::$instance;
+        foreach ([$instance->logFile, $instance->logFileNobuffer, $instance->logMysql, $instance->logUdp] as $logger) {
+            if ($logger instanceof Logger) {
+                $logger->close();
+            }
+        }
+
+        self::$instance = null;
+    }
+
+    /**
+     * 将缓冲中的日志立即刷到磁盘。常驻进程没有 PHP 请求结束，不会自动 flush。
+     */
+    public function flush(): void
+    {
+        foreach ([$this->logFile, $this->logFileNobuffer] as $logger) {
+            if (! $logger instanceof Logger) {
+                continue;
+            }
+            foreach ($logger->getHandlers() as $handler) {
+                if (method_exists($handler, 'flush')) {
+                    $handler->flush();
+                }
+                if ($handler instanceof StreamHandler) {
+                    $stream = $handler->getStream();
+                    if (is_resource($stream)) {
+                        fflush($stream);
+                    }
+                }
+            }
+        }
     }
     
     /**
@@ -85,11 +128,15 @@ class Oalog
         
         if (in_array($level, [Logger::ERROR, Logger::CRITICAL, Logger::EMERGENCY])) {
             $this->getFileInstanceNoBuffer();
-            return $this->logFileNobuffer->oalog($message, $context, $level);
-        } else {
-            $this->getFileInstance();
-            return $this->logFile->oalog($message, $context, $level);
+            $ok = $this->logFileNobuffer->oalog($message, $context, $level);
+            $this->flush();
+            return $ok;
         }
+
+        $this->getFileInstance();
+        $ok = $this->logFile->oalog($message, $context, $level);
+        $this->flush();
+        return $ok;
     }
 
     /**
@@ -132,15 +179,21 @@ class Oalog
         if ($this->logFile == null) {
             // 创建Logger实例
             $this->logFile = new Logger($this->config['channel']);
-            // 添加handler
-            //添加Buffer处理，每达到10条写入Stream，程序结束一并写入Stream
-            $this->logFile->pushHandler(new BufferHandler(
-                (new StreamHandler($this->config['file_log_path'], Logger::DEBUG))->setFormatter(new LineFormatter(null, null, false, false)),
-                $this->config['file_log_buffer'],
-                Logger::DEBUG,
-                false,
-                true
+            $streamHandler = (new FlushingStreamHandler($this->config['file_log_path'], Logger::DEBUG, true, 0777))
+                ->setFormatter(new LineFormatter(null, null, false, false));
+
+            // CLI / Swoole / Octane 常驻进程没有请求结束，BufferHandler 依赖的 shutdown 不会触发
+            if ($this->shouldBufferFileLog()) {
+                $this->logFile->pushHandler(new BufferHandler(
+                    $streamHandler,
+                    $this->config['file_log_buffer'],
+                    Logger::DEBUG,
+                    false,
+                    true
                 ));
+            } else {
+                $this->logFile->pushHandler($streamHandler);
+            }
             
             $this->logFile->pushProcessor(new HostnameProcessor());
             $this->logFile->pushProcessor(new MemoryUsageProcessor());
@@ -156,9 +209,10 @@ class Oalog
         if ($this->logFileNobuffer == null) {
             // 创建Logger实例
             $this->logFileNobuffer = new Logger($this->config['channel']);
-            // 添加handler
-            //添加Buffer处理，每达到10条写入Stream，程序结束一并写入Stream
-            $this->logFileNobuffer->pushHandler((new StreamHandler($this->config['file_log_path'], Logger::DEBUG, true, 0777))->setFormatter(new LineFormatter(null, null, false, false)));
+            $this->logFileNobuffer->pushHandler(
+                (new FlushingStreamHandler($this->config['file_log_path'], Logger::DEBUG, true, 0777))
+                    ->setFormatter(new LineFormatter(null, null, false, false))
+            );
             
             $this->logFileNobuffer->pushProcessor(new HostnameProcessor());
             $this->logFileNobuffer->pushProcessor(new MemoryUsageProcessor());
@@ -167,6 +221,18 @@ class Oalog
             $this->logFileNobuffer->pushProcessor(new UidProcessor(32));
             $this->logFileNobuffer->pushProcessor(new WebProcessor());
         }
+    }
+
+    /**
+     * FPM 短请求可以缓冲；CLI 常驻进程必须立即写盘。
+     */
+    private function shouldBufferFileLog(): bool
+    {
+        if (PHP_SAPI === 'cli' || PHP_SAPI === 'cli-server') {
+            return false;
+        }
+
+        return ((int) ($this->config['file_log_buffer'] ?? 0)) > 1;
     }
 
     private function getMysqlInstance():void
